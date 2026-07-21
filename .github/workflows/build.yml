@@ -22,36 +22,42 @@ jobs:
           python-version: '3.x'
 
       - name: Configure & Build (Ninja, HW_PLATFORM=MIRABOX)
-        shell: cmd
+        shell: pwsh
         run: |
-          set VSWHERE=%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe
-          if not exist "%VSWHERE%" set VSWHERE=%ProgramFiles%\Microsoft Visual Studio\Installer\vswhere.exe
-          if not exist "%VSWHERE%" (
-            echo ::error::vswhere.exe not found
-            exit /b 1
-          )
-          for /f "usebackq delims=" %%i in (`"%VSWHERE%" -latest -products * -property installationPath`) do set VSINSTALL=%%i
-          if not defined VSINSTALL (
-            echo ::error::vswhere returned no Visual Studio installation
-            exit /b 1
-          )
-          call "%VSINSTALL%\VC\Auxiliary\Build\vcvars64.bat"
-          where cmake >nul 2>&1
-          if errorlevel 1 (
-            echo ::error::cmake not found on PATH after vcvars64 (VSINSTALL=%VSINSTALL%)
-            exit /b 1
-          )
-          where ninja >nul 2>&1
-          if errorlevel 1 (
-            echo ::error::ninja not found on PATH after vcvars64 (VSINSTALL=%VSINSTALL%)
-            exit /b 1
-          )
-          where python >nul 2>&1
-          if errorlevel 1 (
-            echo ::error::python not found on PATH
-            exit /b 1
-          )
-          python build.py -p mirabox -t release -d
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          if (-not (Test-Path $vswhere)) { $vswhere = "$env:ProgramFiles\Microsoft Visual Studio\Installer\vswhere.exe" }
+          if (-not (Test-Path $vswhere)) {
+            Write-Host "::error::vswhere.exe not found"
+            exit 1
+          }
+          $vsInstall = & $vswhere -latest -products * -property installationPath | Select-Object -First 1
+          if ([string]::IsNullOrWhiteSpace($vsInstall)) {
+            Write-Host "::error::vswhere returned no Visual Studio installation"
+            exit 1
+          }
+          $vcvars = Join-Path $vsInstall 'VC\Auxiliary\Build\vcvars64.bat'
+          if (-not (Test-Path $vcvars)) {
+            Write-Host "::error::vcvars64.bat not found at $vcvars"
+            exit 1
+          }
+          Write-Host "Using VS install: $vsInstall"
+
+          $bat = Join-Path $env:RUNNER_TEMP 'build_run.bat'
+          @"
+@echo on
+call "$vcvars"
+python build.py -p mirabox -t release -d
+"@ | Set-Content -Path $bat -Encoding ASCII
+
+          $logFile = Join-Path $env:RUNNER_TEMP 'build.log'
+          & cmd /c $bat *> $logFile
+          $code = $LASTEXITCODE
+          Get-Content $logFile | Write-Host
+          if ($code -ne 0) {
+            $tail = Get-Content $logFile -Tail 30
+            foreach ($line in $tail) { if ($line.Trim()) { Write-Host "::error::$($line.Trim())" } }
+            exit $code
+          }
 
       - name: Locate plugin archive
         id: archive
