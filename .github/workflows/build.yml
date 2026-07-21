@@ -21,14 +21,13 @@ jobs:
         with:
           python-version: '3.x'
 
-      - name: Set up MSVC developer environment
-        uses: ilammy/msvc-dev-tools@v1
-        with:
-          arch: x64
-
       - name: Configure & Build (Ninja, HW_PLATFORM=MIRABOX)
         shell: cmd
         run: |
+          set VSWHERE=%ProgramFiles%\Microsoft Visual Studio\Installer\vswhere.exe
+          for /f "usebackq tokens=*" %%i in (`"%VSWHERE%" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath`) do set VSINSTALL=%%i
+          if not defined VSINSTALL exit /b 1
+          call "%VSINSTALL%\VC\Auxiliary\Build\vcvars64.bat"
           python build.py -p mirabox -t release -d
 
       - name: Locate plugin archive
