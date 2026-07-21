@@ -26,8 +26,26 @@ jobs:
         run: |
           set VCVARS=C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat
           if not exist "%VCVARS%" set VCVARS=C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat
-          if not exist "%VCVARS%" exit /b 1
+          if not exist "%VCVARS%" (
+            echo ::error::vcvars64.bat not found at either Enterprise or Community path
+            exit /b 1
+          )
           call "%VCVARS%"
+          where cmake >nul 2>&1
+          if errorlevel 1 (
+            echo ::error::cmake not found on PATH after vcvars64
+            exit /b 1
+          )
+          where ninja >nul 2>&1
+          if errorlevel 1 (
+            echo ::error::ninja not found on PATH after vcvars64
+            exit /b 1
+          )
+          where python >nul 2>&1
+          if errorlevel 1 (
+            echo ::error::python not found on PATH
+            exit /b 1
+          )
           python build.py -p mirabox -t release -d
 
       - name: Locate plugin archive
