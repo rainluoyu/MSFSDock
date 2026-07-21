@@ -13,7 +13,6 @@
 #include "HSDLogger.h"
 #include <fstream>
 #include <mutex>
-#include <unordered_map>
 
 void HSDConnectionManager::OnOpen(WebsocketClient* inClient, websocketpp::connection_hdl inConnectionHandler) {
     HSDLogger::LogMessage("OnOpen");
@@ -230,20 +229,7 @@ void HSDConnectionManager::SetImage(
     // (one per action throttle). Serialize the websocket send so that
     // concurrent senders cannot corrupt the write queue.
     static std::mutex s_setImageMutex;
-    static std::unordered_map<std::string, std::string> s_lastImagePerContext;
     std::lock_guard<std::mutex> sendLock(s_setImageMutex);
-
-    // Byte-level dedup: if the exact same PNG was last pushed for this
-    // context, skip the websocket send entirely. This protects against
-    // DisplayKey() mis-detections (e.g. float precision) and especially
-    // benefits buttons/switches whose image rarely changes.
-    if (!inBase64ImageString.empty()) {
-        auto it = s_lastImagePerContext.find(inContext);
-        if (it != s_lastImagePerContext.end() && it->second == inBase64ImageString) {
-            return;
-        }
-        s_lastImagePerContext[inContext] = inBase64ImageString;
-    }
 
     json jsonObject;
 
