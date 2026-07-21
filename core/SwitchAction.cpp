@@ -1,6 +1,7 @@
 #include "SwitchAction.hpp"
 #include "plugin/Logger.hpp"
 #include "ui/GDIPlusManager.hpp"
+#include <sstream>
 
 namespace EVT = BaseActionEvents;
 
@@ -78,7 +79,7 @@ void SwitchAction::OnVariableUpdated(const std::string& name, double value) {
     }
 
     curPos_ = it->second;
-    UpdateImage();
+    RequestImageUpdate();
 
 }
 
@@ -119,6 +120,14 @@ void SwitchAction::WillDisappear(const nlohmann::json& /*payload*/) {
 
     ClearSettings();
     UIManager::Instance().Unregister(this);
+    StopRefreshHelper();
+}
+
+std::string SwitchAction::DisplayKey() const {
+    std::ostringstream os;
+    os << SimManager::Instance().IsConnected() << '|'
+       << header_ << '|' << curPos_ << '|' << positions_.size();
+    return os.str();
 }
 
 void SwitchAction::ClearSettings() {

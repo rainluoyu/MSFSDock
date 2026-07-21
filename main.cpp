@@ -1,6 +1,7 @@
 #include <fstream>
 
 #include "plugin/Logger.hpp"
+#include "plugin/Config.hpp"
 #include "plugin/Plugin.hpp"
 #include "SimManager/SimManager.hpp"
 #include "ui/GDIFonts.hpp"
@@ -75,6 +76,7 @@ void Exit(void) {
 
 int main(int argc, const char** argv) {
   LogInit();
+  Config::Instance().Init();
   StartupLog();
 
 #ifdef COREDUMP

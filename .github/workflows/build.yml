@@ -1,0 +1,49 @@
+name: Build Mirabox (AJ202X)
+
+on:
+  push:
+    branches: [ master, main ]
+  pull_request:
+    branches: [ master, main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build Mirabox plugin
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Set up MSVC developer environment
+        uses: ilammy/msvc-dev-tools@v1
+        with:
+          arch: x64
+
+      - name: Configure & Build (Ninja, HW_PLATFORM=MIRABOX)
+        shell: cmd
+        run: |
+          python build.py -p mirabox -t release -d
+
+      - name: Locate plugin archive
+        id: archive
+        shell: pwsh
+        run: |
+          $zip = Get-ChildItem -Path build -Recurse -Filter "*.zip" | Select-Object -First 1
+          Write-Host "Found archive: $($zip.FullName)"
+          "path=$($zip.FullName)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          "name=$($zip.Name)"     | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
+      - name: Upload complete plugin archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: msfsDock-mirabox
+          path: ${{ steps.archive.outputs.path }}
+          if-no-files-found: error
+          retention-days: 14

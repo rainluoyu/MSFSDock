@@ -1,4 +1,6 @@
 #include "BaseAction.hpp"
+#include "plugin/Config.hpp"
+#include "plugin/Logger.hpp"
 
 inline std::string to_hex32(uint32_t value)
 {
@@ -19,7 +21,11 @@ BaseAction::BaseAction(HSDConnectionManager* hsd_connection,
     isPmdg = IsPmdgAction(action);
 }
 
-BaseAction::~BaseAction() = default;
+BaseAction::~BaseAction() {
+    // Defensive cleanup if a derived destructor forgot to call StopRefreshHelper();
+    // the only safe access here is the atomic flag + joining the thread.
+    StopRefreshHelper();
+}
 
 void BaseAction::OnVariableUpdated(const std::string& name, double value) {
     // Default empty implementation
@@ -210,4 +216,75 @@ void BaseAction::SendToPI(const nlohmann::json& payload) {
     nlohmann::json out_payload = BuildCommonPayloadJson();
 
     SendToPropertyInspector(out_payload);
+}
+
+// ---------------- Throttle helper ----------------
+
+void BaseAction::RequestImageUpdate() {
+    refreshPending_.store(true);
+
+    // Lazily spawn the throttle worker on first request for this action.
+    if (!refreshThreadRunning_.exchange(true)) {
+        refreshThread_ = std::thread(&BaseAction::RefreshWorker, this);
+        return;
+    }
+
+    refreshCv_.notify_one();
+}
+
+void BaseAction::StopRefreshHelper() {
+    bool expected = true;
+    if (!refreshThreadRunning_.compare_exchange_strong(expected, false))
+        return;
+
+    refreshCv_.notify_all();
+    if (refreshThread_.joinable())
+        refreshThread_.join();
+}
+
+void BaseAction::RefreshWorker() {
+    while (refreshThreadRunning_.load()) {
+        bool dispatch = false;
+        {
+            std::unique_lock lock(refreshMutex_);
+            refreshCv_.wait(lock, [this] {
+                return refreshPending_.load() || !refreshThreadRunning_.load();
+            });
+
+            if (!refreshThreadRunning_.load())
+                return;
+
+            auto interval = std::chrono::milliseconds(Config::Instance().MinUpdateIntervalMs());
+            auto now = std::chrono::steady_clock::now();
+            auto nextAllowed = lastRefreshTime_ + interval;
+
+            if (now < nextAllowed) {
+                // Wait until enough time has elapsed, but stay interruptible.
+                refreshCv_.wait_until(lock, nextAllowed);
+                continue;
+            }
+
+            if (!refreshPending_.load())
+                continue;
+
+            refreshPending_.store(false);
+            lastRefreshTime_ = std::chrono::steady_clock::now();
+
+            // Decide whether the visible content actually changed.
+            std::string key = DisplayKey();
+            if (!key.empty()) {
+                if (hasLastDisplayKey_ && key == lastDisplayKey_) {
+                    // Content identical since last redraw - drop the PNG step.
+                    continue;
+                }
+                lastDisplayKey_ = key;
+                hasLastDisplayKey_ = true;
+            }
+
+            dispatch = true;
+        }
+
+        if (dispatch)
+            UpdateImage();
+    }
 }

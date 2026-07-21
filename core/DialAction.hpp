@@ -18,6 +18,8 @@ public:
           isDual(isDual), isRadio(isRadio)
     {}
 
+    ~DialAction() override { StopRefreshHelper(); }
+
     virtual void DidReceiveSettings(const nlohmann::json& payload) override;
     virtual void DialDown(const nlohmann::json& payload) override;
     virtual void DialUp(const nlohmann::json& payload) override;
@@ -27,6 +29,7 @@ public:
     virtual void WillDisappear(const nlohmann::json& payload) override;
     void OnVariableUpdated(const std::string& name, double value);
     void UpdateImage();
+    std::string DisplayKey() const override;
 
     std::string displayValue_;
 

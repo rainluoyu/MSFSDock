@@ -1,6 +1,7 @@
 #include "DataAction.hpp"
 #include "plugin/Logger.hpp"
 #include <numbers>
+#include <sstream>
 
 namespace EVT = BaseActionEvents;
 
@@ -99,7 +100,7 @@ void DataAction::OnVariableUpdated(const std::string& name, double value) {
     lastDrawInfo2_ = infoVar2Def_.value;
     lastDrawTime_ = now;
 
-    UpdateImage();
+    RequestImageUpdate();
 }
 
 void DataAction::DidReceiveSettings(const nlohmann::json& payload) {
@@ -136,6 +137,21 @@ void DataAction::WillDisappear(const nlohmann::json& /*payload*/) {
 
     ClearSettings();
     UIManager::Instance().Unregister(this);
+    StopRefreshHelper();
+}
+
+std::string DataAction::DisplayKey() const {
+    std::ostringstream os;
+    os << SimManager::Instance().IsConnected() << '|'
+       << isButton_ << '|' << dataType_ << '|'
+       << pitchVarDef_.value << '|'
+       << bankVarDef_.value << '|'
+       << headingVarDef_.value << '|'
+       << speedVarDef_.value << '|'
+       << altVarDef_.value << '|'
+       << infoVarDef_.value << '|'
+       << infoVar2Def_.value;
+    return os.str();
 }
 
 void DataAction::ClearSettings() {

@@ -20,6 +20,8 @@ public:
         : BaseAction(hsd_connection, action, context)
     {}
 
+    ~SwitchAction() override { StopRefreshHelper(); }
+
     virtual void DidReceiveSettings(const nlohmann::json& payload) override;
     virtual void KeyDown(const nlohmann::json& payload) override;
     virtual void KeyUp(const nlohmann::json& payload) override;
@@ -27,6 +29,7 @@ public:
     virtual void WillDisappear(const nlohmann::json& payload) override;
     void OnVariableUpdated(const std::string& name, double value);
     void UpdateImage();
+    std::string DisplayKey() const override;
 
 private:
     void UpdateVariablesAndEvents(const nlohmann::json& payload);

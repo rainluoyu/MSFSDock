@@ -2,6 +2,7 @@
 #include "plugin/Logger.hpp"
 #include "ui/GDIPlusManager.hpp"
 #include <cmath>
+#include <sstream>
 
 namespace EVT = BaseActionEvents;
 
@@ -52,7 +53,7 @@ void ButtonAction::OnVariableUpdated(const std::string& name, double value) {
     if (name == conditionalVarDef_.name) {
         conditionalVarDef_.value = value;
     }
-    UpdateImage();
+    RequestImageUpdate();
 }
 
 void ButtonAction::DidReceiveSettings(const nlohmann::json& payload) {
@@ -128,6 +129,16 @@ void ButtonAction::WillDisappear(const nlohmann::json& /*payload*/) {
 
     ClearSettings();
     UIManager::Instance().Unregister(this);
+    StopRefreshHelper();
+}
+
+std::string ButtonAction::DisplayKey() const {
+    std::ostringstream os;
+    os << SimManager::Instance().IsConnected() << '|'
+       << skin_ << '|' << varIsInteger_ << '|'
+       << isActive << '|' << displayVarDef_.value << '|'
+       << conditionalVarDef_.value;
+    return os.str();
 }
 
 void ButtonAction::ClearSettings() {

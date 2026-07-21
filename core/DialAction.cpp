@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <sstream>
 #include "DialAction.hpp"
 #include "plugin/Logger.hpp"
 #include "ui/GDIPlusManager.hpp"
@@ -55,7 +56,7 @@ void DialAction::OnVariableUpdated(const std::string& name, double value) {
     } else if (name == feedbackVarDef_.name) {
         isActive = (value == 0) ? false : true;
     }
-    UpdateImage();
+    RequestImageUpdate();
 }
 
 void DialAction::DidReceiveSettings(const nlohmann::json& payload) {
@@ -181,6 +182,18 @@ void DialAction::WillDisappear(const nlohmann::json& /*payload*/) {
 
     ClearSettings();
     UIManager::Instance().Unregister(this);
+    StopRefreshHelper();
+}
+
+std::string DialAction::DisplayKey() const {
+    std::ostringstream os;
+    os << SimManager::Instance().IsConnected() << '|'
+       << skin_ << '|'
+       << isDual << '|' << isRadio << '|'
+       << isActive << '|'
+       << active_dial << '|' << active_radio_part << '|'
+       << displayVarDef_.value << '|' << display2VarDef_.value;
+    return os.str();
 }
 
 void DialAction::ClearSettings() {

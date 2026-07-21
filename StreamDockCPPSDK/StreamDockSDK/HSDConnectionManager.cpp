@@ -12,6 +12,7 @@
 #include "HSDLogger.h"
 #include "HSDLogger.h"
 #include <fstream>
+#include <mutex>
 
 void HSDConnectionManager::OnOpen(WebsocketClient* inClient, websocketpp::connection_hdl inConnectionHandler) {
     HSDLogger::LogMessage("OnOpen");
@@ -224,6 +225,12 @@ void HSDConnectionManager::SetImage(
     const std::string& inContext,
     ESDSDKTarget inTarget,
     int inState) {
+    // Image updates may originate from multiple UI action worker threads
+    // (one per action throttle). Serialize the websocket send so that
+    // concurrent senders cannot corrupt the write queue.
+    static std::mutex s_setImageMutex;
+    std::lock_guard<std::mutex> sendLock(s_setImageMutex);
+
     json jsonObject;
 
     jsonObject[kESDSDKCommonEvent] = kESDSDKEventSetImage;

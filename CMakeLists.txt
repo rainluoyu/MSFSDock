@@ -24,6 +24,7 @@ set(SOURCES
     ui/GDIPlusManager.cpp
     ui/UIManager.cpp
     plugin/Logger.cpp
+    plugin/Config.cpp
     plugin/Plugin.cpp
     main.cpp
     core/BaseAction.cpp

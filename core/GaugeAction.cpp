@@ -1,5 +1,6 @@
 #include "GaugeAction.hpp"
 #include "plugin/Logger.hpp"
+#include <sstream>
 
 namespace EVT = BaseActionEvents;
 
@@ -45,7 +46,7 @@ void GaugeAction::OnVariableUpdated(const std::string& name, double value) {
     if (name == displayVarDef_.name) {
         displayVarDef_.value = value;
     }
-    UpdateImage();
+    RequestImageUpdate();
 }
 
 void GaugeAction::DidReceiveSettings(const nlohmann::json& payload) {
@@ -79,6 +80,17 @@ void GaugeAction::WillDisappear(const nlohmann::json& /*payload*/) {
 
     ClearSettings();
     UIManager::Instance().Unregister(this);
+    StopRefreshHelper();
+}
+
+std::string GaugeAction::DisplayKey() const {
+    std::ostringstream os;
+    os << SimManager::Instance().IsConnected() << '|'
+       << skinType_ << '|' << dataFormat << '|'
+       << minVal_ << '|' << maxVal_ << '|' << fill_ << '|'
+       << scaleColor_ << '|' << indicatorColor_ << '|' << bgColor_ << '|'
+       << displayVarDef_.value;
+    return os.str();
 }
 
 void GaugeAction::ClearSettings() {
