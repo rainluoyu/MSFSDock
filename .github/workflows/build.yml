@@ -24,21 +24,26 @@ jobs:
       - name: Configure & Build (Ninja, HW_PLATFORM=MIRABOX)
         shell: cmd
         run: |
-          set VCVARS=C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat
-          if not exist "%VCVARS%" set VCVARS=C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat
-          if not exist "%VCVARS%" (
-            echo ::error::vcvars64.bat not found at either Enterprise or Community path
+          set VSWHERE=%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe
+          if not exist "%VSWHERE%" set VSWHERE=%ProgramFiles%\Microsoft Visual Studio\Installer\vswhere.exe
+          if not exist "%VSWHERE%" (
+            echo ::error::vswhere.exe not found
             exit /b 1
           )
-          call "%VCVARS%"
+          for /f "usebackq delims=" %%i in (`"%VSWHERE%" -latest -products * -property installationPath`) do set VSINSTALL=%%i
+          if not defined VSINSTALL (
+            echo ::error::vswhere returned no Visual Studio installation
+            exit /b 1
+          )
+          call "%VSINSTALL%\VC\Auxiliary\Build\vcvars64.bat"
           where cmake >nul 2>&1
           if errorlevel 1 (
-            echo ::error::cmake not found on PATH after vcvars64
+            echo ::error::cmake not found on PATH after vcvars64 (VSINSTALL=%VSINSTALL%)
             exit /b 1
           )
           where ninja >nul 2>&1
           if errorlevel 1 (
-            echo ::error::ninja not found on PATH after vcvars64
+            echo ::error::ninja not found on PATH after vcvars64 (VSINSTALL=%VSINSTALL%)
             exit /b 1
           )
           where python >nul 2>&1
