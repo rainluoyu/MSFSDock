@@ -43,11 +43,12 @@ jobs:
           Write-Host "Using VS install: $vsInstall"
 
           $bat = Join-Path $env:RUNNER_TEMP 'build_run.bat'
-          @"
-@echo on
-call "$vcvars"
-python build.py -p mirabox -t release -d
-"@ | Set-Content -Path $bat -Encoding ASCII
+          $lines = @(
+            '@echo on',
+            "call `"$vcvars`"",
+            'python build.py -p mirabox -t release -d'
+          )
+          $lines | Set-Content -Path $bat -Encoding ASCII
 
           $logFile = Join-Path $env:RUNNER_TEMP 'build.log'
           & cmd /c $bat *> $logFile
